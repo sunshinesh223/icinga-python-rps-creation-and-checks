@@ -34,19 +34,25 @@ def main(args):
 
     ### put the related profiles to the role
     for item in profiles:
+        ###instantiate the profile class
+        Profile(item)
         for rs in profiles[item]:
             RPS[rs].add_profile(item)
 
     ### put the related services to the profile 
     for item in services:
-        for rs in profiles[item]:
-            RPS[rs].add_profile(item)
+        ###instantiate the Service class
+        Service(item)
+        for rs in services[item]:
+            Profile(rs).add_service(item)
+            Profile(rs).list_service()
     
-    for item in RPS:
-        print item
-        RPS[item].list_profile()
-        RPS[item].list_server()
-
+#    for item in RPS:
+#        print item
+#        RPS[item].list_profile()
+#        RPS[item].list_server()
+#        for i in Role(item).profiles:
+#            Profile(i).list_service
 
 def getrole(location):
     ###create the list command, it will pickup all the roles in the host define files.
@@ -127,15 +133,16 @@ class Role(object):
 class Profile(object):  
     def __init__(self,name):
         self.name=name
-        self.services=[]
+        self.aservices=[]
     
-    def add_services(servicename):
-        if servicename not in self.servicename:
-            self.services.append = servicename
+    def add_service(self,servicename):
+        #if servicename not in  self.services:
+        #    self.services.append(servicename)
+        print servicename
+        self.aservices.extend(servicename)
 
-    def list_service():
-        for s in self.services:
-             print s
+    def list_service(self):
+        print self.aservices
 
 class Service(object):
     def __init__(self,name):

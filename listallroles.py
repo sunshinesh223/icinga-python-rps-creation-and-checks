@@ -2,6 +2,7 @@
 
 import argparse
 import pprint
+import gc
 import subprocess
 import re
 from collections import defaultdict
@@ -15,7 +16,7 @@ def main(args):
     roles=getrole(Path)
     
     ###get all profiles in an array contains profiles and roles are using the profile
-    profiles=getprofile(Path)
+    profiles=getprofile(Path,roles)
     
     ###get all services in an array contains services and profiles are using the service
     services=getservices(Path)
@@ -28,28 +29,34 @@ def main(args):
         ###grep the name of the object from the roles dictionary, and then initate an role object, put it into the Array--RPS
         RPS[item]=Role(item)
    
-        ###call the subroutine for Role object, to add the servers to the related role
-        for ss in roles[item]:
-            RPS[item].add_servers(ss)
-
+#        ###call the subroutine for Role object, to add the servers to the related role
+#        for ss in roles[item]:
+#            RPS[item].add_servers(ss)
+#
     ### put the related profiles to the role
     for item in profiles:
         ###instantiate the profile class
         Profile(item)
         for rs in profiles[item]:
-            RPS[rs].add_profile(item)
-
-    ### put the related services to the profile 
-    for item in services:
-        ###instantiate the Service class
-        Service(item)
-        for rs in services[item]:
-            Profile(rs).add_service(item)
-            Profile(rs).list_service()
+            tmp=Profile(item)
+            RPS[rs].add_profile(tmp.name,tmp)
     
+
+    ### put the related services to the profile, we will 
+#    for item in services:
+#        ###instantiate the Service class
+#        print 
+#        print item
+#        for i2 in services[item]:
+#            print i2
+#        
+
+
 #    for item in RPS:
 #        print item
-#        RPS[item].list_profile()
+#        #RPS[item].list_profile()
+#        for p in RPS[item].profiles:
+#            print p
 #        RPS[item].list_server()
 #        for i in Role(item).profiles:
 #            Profile(i).list_service
@@ -68,10 +75,16 @@ def getrole(location):
     for line in data:
         ###use re to get host and role set and role as key, servers as value
         ma=re.search(reg,line)
-        allroles[re.search(reg,line).group(2)].append(re.search(reg,line).group(1))
+        #allroles[re.search(reg,line).group(2)].append(re.search(reg,line).group(1))
+        if allroles[re.search(reg,line).group(2)]:
+            allroles[re.search(reg,line).group(2)].add_servers(re.search(reg,line).group(1))
+        else:
+            allroles[re.search(reg,line).group(2)]=Role(re.search(reg,line).group(2))
+            allroles[re.search(reg,line).group(2)].add_servers(re.search(reg,line).group(1))
+    
     return allroles
 
-def getprofile(location):
+def getprofile(location,roles):
     ###create the list command, it will pickup all the roles in the host define files.
     getrolecmd = "grep \"assign where\" %s/profile/* -r" % (location)
     
@@ -83,12 +96,21 @@ def getprofile(location):
     reg =".*\/(.*).conf.*assign where\s(\"(.*)\")?"    
     for line in data:
         ###use re to get host and role set, profile as key role as value.
+        ###when the profile is not profiles-common,instantiate the profile object, and add the profile to Role objects 
         if re.search(reg,line).group(2):
-            allprofiles[re.search(reg,line).group(1)].append(re.search(reg,line).group(3))
+            ###if the profile has already been initialized, just add the profile to the related role, re.search(reg,line).group(1) is the profile, re.search(reg,line).group(2) is the role name
+            if allprofiles[re.search(reg,line).group(1)]:
+                roles[re.search(reg,line).group(2)].add_profile(re.search(reg,line).group(1))
+            ###if the profile is not created yet, instantiate the profile, and then added to the role instance, same as the previous step
+            else:
+                allprofiles[re.search(reg,line).group(1)]=Profile(re.search(reg,line).group(1))
+                roles[re.search(reg,line).group(2)].add_profile(re.search(reg,line).group(1))
         else :
-            roles=getrole(Path)
-            for item in roles:
-                allprofiles[re.search(reg,line).group(1)].append(item)
+                allprofiles[re.search(reg,line).group(1)]=Profile(re.search(reg,line).group(1))
+                for item in roles:
+                    roles[item].add_profile(re.search(reg,line).group(1))
+
+    print allprofiles
     return allprofiles
 
 def getservices(location):
@@ -117,7 +139,7 @@ class Role(object):
         self.profiles=[]
     
     def add_profile(self,profilename):
-        if profilename not in  self.profiles:
+        if profilename not in self.profiles:
             self.profiles.append(profilename)
 
     def list_profile(self):
@@ -128,18 +150,16 @@ class Role(object):
 
     def add_servers(self,servernames):
         if servernames not in  self.servers:
-            self.servers.append(servernames)
+            self.servers.append(servernames) 
 
 class Profile(object):  
     def __init__(self,name):
         self.name=name
-        self.aservices=[]
+        self.services=[]
     
     def add_service(self,servicename):
-        #if servicename not in  self.services:
-        #    self.services.append(servicename)
-        print servicename
-        self.aservices.extend(servicename)
+        if servicename not in  self.services:
+            self.services.append(servicename)
 
     def list_service(self):
         print self.aservices
